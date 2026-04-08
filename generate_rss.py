@@ -23,57 +23,20 @@ def fetch_jobs():
     try:
         resp = requests.get(LIST_URL, headers=HEADERS, timeout=15)
         resp.raise_for_status()
-        
-        # 사이트 인코딩 자동 감지 (한글 깨짐 방지)
         resp.encoding = resp.apparent_encoding if resp.apparent_encoding else "utf-8"
         
+        # 🟢 디버깅 코드 추가: 깃허브 액션 로그에서 HTML을 직접 눈으로 확인
+        print(f"[DEBUG] 응답 상태 코드: {resp.status_code}")
+        print(f"[DEBUG] HTML 글자 수: {len(resp.text)}")
+        if len(resp.text) < 2000: # 정상 페이지라면 글자 수가 훨씬 깁니다. 짧으면 차단 페이지입니다.
+            print(f"[DEBUG] HTML 미리보기: {resp.text[:500]}")
+
     except Exception as e:
         print(f"[ERROR] 페이지 요청 실패: {e}")
         return []
 
     soup = BeautifulSoup(resp.text, "html.parser")
-    jobs = []
-
-    # 수정됨: tbody를 제외하고 table 하위의 tr을 바로 찾도록 변경
-    rows = soup.select("table tr")
-    
-    for row in rows:
-        title_td = row.select_one("td.title")
-        if not title_td:
-            continue
-
-        a_tag = title_td.select_one("a")
-        if not a_tag:
-            continue
-
-        title = a_tag.get_text(strip=True)
-        href = a_tag.get("href", "")
-        link = BASE_URL + href if href.startswith("/") else href
-
-        tds = row.select("td")
-        date_str = ""
-        deadline_str = ""
-        org = ""
-
-        # td 순서: 0:번호, 1:제목, 2:기관명, 3:등록일, 4:조회수, 5:마감일
-        if len(tds) >= 4:
-            org = tds[2].get_text(strip=True) if len(tds) > 2 else ""
-            date_str = tds[3].get_text(strip=True) if len(tds) > 3 else ""
-            deadline_str = tds[5].get_text(strip=True) if len(tds) > 5 else ""
-
-        # 고유 ID 생성 (링크 기반)
-        uid = hashlib.md5(link.encode()).hexdigest()
-
-        jobs.append({
-            "uid": uid,
-            "title": title,
-            "link": link,
-            "org": org,
-            "date": date_str,
-            "deadline": deadline_str,
-        })
-
-    return jobs
+    # ... (기존 코드 동일) ...
 
 def load_state():
     if os.path.exists(STATE_FILE):
