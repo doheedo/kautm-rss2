@@ -34,7 +34,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 수집된 파일들 스테이징
           git add rss.xml state.json
-          # 변경사항이 있을 때만 커밋
-          git diff --cached --quiet || git commit -m "chore: RSS 업데이트 $(date +'%Y-%m-%d %H:%M KST')"
-          git push
+          
+          # 안전한 if문 방식으로 변경사항 유무 확인
+          if ! git diff --cached --quiet; then
+            echo "[*] 변경사항이 감지되었습니다. 커밋과 푸시를 진행합니다."
+            git commit -m "chore: RSS 업데이트 $(date +'%Y-%m-%d %H:%M KST')"
+            git push
+          else
+            echo "[*] 수집된 새로운 공고가 없거나 내용이 동일하여 커밋을 건너뜁니다."
+          fi
