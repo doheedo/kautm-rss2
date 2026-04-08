@@ -1,11 +1,11 @@
-import requests
+import requests 
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 import json
 import os
 import hashlib
-from xml.etree.ElementTree import Element, SubElement, ElementTree, tostring
 import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import Element, SubElement, ElementTree
 
 BASE_URL = "http://www.kautm.net"
 LIST_URL = f"{BASE_URL}/bbs/?so_table=tlo_news&category=recruit"
@@ -18,13 +18,15 @@ HEADERS = {
     "Referer": BASE_URL,
 }
 
-
 def fetch_jobs():
     """채용공고 목록 스크래핑"""
     try:
         resp = requests.get(LIST_URL, headers=HEADERS, timeout=15)
         resp.raise_for_status()
-        resp.encoding = "utf-8"
+        
+        # 사이트 인코딩 자동 감지 (한글 깨짐 방지)
+        resp.encoding = resp.apparent_encoding if resp.apparent_encoding else "utf-8"
+        
     except Exception as e:
         print(f"[ERROR] 페이지 요청 실패: {e}")
         return []
@@ -32,7 +34,9 @@ def fetch_jobs():
     soup = BeautifulSoup(resp.text, "html.parser")
     jobs = []
 
-    rows = soup.select("table tbody tr")
+    # 수정됨: tbody를 제외하고 table 하위의 tr을 바로 찾도록 변경
+    rows = soup.select("table tr")
+    
     for row in rows:
         title_td = row.select_one("td.title")
         if not title_td:
@@ -51,7 +55,7 @@ def fetch_jobs():
         deadline_str = ""
         org = ""
 
-        # td 순서: 번호, 제목, 기관명, 등록일, 조회수, 마감일
+        # td 순서: 0:번호, 1:제목, 2:기관명, 3:등록일, 4:조회수, 5:마감일
         if len(tds) >= 4:
             org = tds[2].get_text(strip=True) if len(tds) > 2 else ""
             date_str = tds[3].get_text(strip=True) if len(tds) > 3 else ""
@@ -71,18 +75,15 @@ def fetch_jobs():
 
     return jobs
 
-
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"seen_ids": [], "items": []}
 
-
 def save_state(state):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
-
 
 def build_rss(items):
     """RSS 2.0 XML 생성"""
@@ -116,7 +117,6 @@ def build_rss(items):
 
     print(f"[OK] RSS 저장 완료: {RSS_FILE} ({len(items)}개 항목)")
 
-
 def main():
     print("[*] 채용공고 스크래핑 시작...")
     jobs = fetch_jobs()
@@ -144,7 +144,6 @@ def main():
 
     save_state({"seen_ids": list(seen_ids), "items": all_items})
     print(f"[*] 완료. 신규 공고: {len(new_jobs)}개")
-
 
 if __name__ == "__main__":
     main()
